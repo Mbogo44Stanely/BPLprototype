@@ -29,28 +29,58 @@ interface AuthResponse {
 // In-memory user storage (replace with real database in production)
 const usersDB: any[] = [
   {
-    id: 1,
+    user_id: 1,
     full_name: 'Super Admin',
     email: 'admin@badminton.ke',
     password: 'admin123',
-    role: 'admin',
-    status: 'active'
+    status: 'active',
+    phone: '+254700000001',
+    roles: [
+      {
+        id: 1,
+        role_name: 'super_admin',
+        status: 'approved',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['view_dashboard', 'manage_users', 'manage_roles_permissions']
+      }
+    ]
   },
   {
-    id: 2,
+    user_id: 2,
     full_name: 'Test Player',
     email: 'player@badminton.ke',
     password: 'player123',
-    role: 'player',
-    status: 'active'
+    status: 'active',
+    phone: '+254700000002',
+    roles: [
+      {
+        id: 2,
+        role_name: 'player',
+        status: 'approved',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['view_profile', 'edit_profile', 'view_tournaments']
+      }
+    ]
   },
   {
-    id: 3,
+    user_id: 3,
     full_name: 'Test Referee',
     email: 'referee@badminton.ke',
     password: 'ref123',
-    role: 'referee',
-    status: 'active'
+    status: 'active',
+    phone: '+254700000003',
+    roles: [
+      {
+        id: 3,
+        role_name: 'referee',
+        status: 'approved',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['view_certification', 'view_assigned_matches', 'score_matches']
+      }
+    ]
   }
 ];
 
@@ -118,12 +148,14 @@ function handleLogin(
   return res.status(200).json({
     success: true,
     user: {
-      id: user.id,
+      user_id: user.user_id,
+      full_name: user.full_name,
       email: user.email,
-      fullName: user.full_name,
-      role: user.role
+      status: user.status,
+      phone: user.phone,
+      roles: user.roles || []
     }
-  } as AuthResponse);
+  });
 }
 
 function handleRegister(

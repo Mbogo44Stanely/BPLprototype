@@ -50,18 +50,55 @@ const auditLogsDB: AuditLog[] = [
 
 const usersDB: any[] = [
   {
-    id: 1,
+    user_id: 1,
     full_name: 'Super Admin',
     email: 'admin@badminton.ke',
     status: 'active',
-    role: 'admin'
+    phone: '+254700000001',
+    roles: [
+      {
+        id: 1,
+        role_name: 'super_admin',
+        status: 'approved',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['view_dashboard', 'manage_users', 'manage_roles_permissions']
+      }
+    ]
   },
   {
-    id: 2,
+    user_id: 2,
     full_name: 'John Doe',
     email: 'john@badminton.ke',
     status: 'pending',
-    role: 'player'
+    phone: '+254700000002',
+    roles: [
+      {
+        id: 2,
+        role_name: 'player',
+        status: 'pending',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['view_profile']
+      }
+    ]
+  },
+  {
+    user_id: 3,
+    full_name: 'Jane Smith',
+    email: 'jane@badminton.ke',
+    status: 'active',
+    phone: '+254700000003',
+    roles: [
+      {
+        id: 3,
+        role_name: 'referee',
+        status: 'approved',
+        scope_type: 'national',
+        scope_id: null,
+        permissions: ['score_matches', 'view_assigned_matches']
+      }
+    ]
   }
 ];
 
