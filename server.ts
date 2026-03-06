@@ -156,6 +156,54 @@ db.exec(`
     FOREIGN KEY(role_id) REFERENCES Roles(id),
     FOREIGN KEY(permission_id) REFERENCES Permissions(id)
   );
+
+  -- registration & payment prototype tables
+  CREATE TABLE IF NOT EXISTS Registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL,
+    player_id INTEGER,
+    team_id INTEGER,
+    status TEXT CHECK(status IN ('pending','confirmed','cancelled')) DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(tournament_id) REFERENCES Tournaments(id),
+    FOREIGN KEY(player_id) REFERENCES Players(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS Payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    registration_id INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    status TEXT CHECK(status IN ('pending','initiated','success','failed')) DEFAULT 'pending',
+    provider_ref TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(registration_id) REFERENCES Registrations(id)
+  );
+
+  -- bracket structure for tournaments
+  CREATE TABLE IF NOT EXISTS Brackets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL,
+    type TEXT CHECK(type IN ('single_elim','rr_knockout')) DEFAULT 'single_elim',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(tournament_id) REFERENCES Tournaments(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS BracketMatches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bracket_id INTEGER NOT NULL,
+    round INTEGER NOT NULL,
+    match_number INTEGER NOT NULL,
+    player1_id INTEGER,
+    player2_id INTEGER,
+    winner_id INTEGER,
+    status TEXT CHECK(status IN ('pending','completed')) DEFAULT 'pending',
+    score1 INTEGER DEFAULT 0,
+    score2 INTEGER DEFAULT 0,
+    FOREIGN KEY(bracket_id) REFERENCES Brackets(id),
+    FOREIGN KEY(player1_id) REFERENCES Players(id),
+    FOREIGN KEY(player2_id) REFERENCES Players(id),
+    FOREIGN KEY(winner_id) REFERENCES Players(id)
+  );
 `);
 
 // Helper to trigger events
@@ -461,6 +509,156 @@ async function startServer() {
       .run(name, level, start_date, end_date, admin_id);
     res.json({ id: result.lastInsertRowid });
   });
+
+  // ---- registration & payment prototype routes ----
+
+  app.post('/api/tournaments/:id/register', (req, res) => {
+    const { id } = req.params;
+    const { player_id, team_id, amount } = req.body;
+    try {
+      const { registration_id, payment_id } = db.transaction(() => {
+        const regResult = db.prepare('INSERT INTO Registrations (tournament_id, player_id, team_id) VALUES (?, ?, ?)')
+          .run(id, player_id || null, team_id || null);
+        const regId = regResult.lastInsertRowid;
+        // create associated payment
+        const payResult = db.prepare('INSERT INTO Payments (registration_id, amount, status) VALUES (?, ?, ?)')
+          .run(regId, amount || 0, 'pending');
+        const payId = payResult.lastInsertRowid;
+        return { registration_id: regId, payment_id: payId };
+      })();
+      res.json({ registration_id, payment_id, message: 'Registration created, payment pending' });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/payments/create', (req, res) => {
+    const { registration_id, amount } = req.body;
+    try {
+      const result = db.prepare('INSERT INTO Payments (registration_id, amount, status) VALUES (?, ?, ?)')
+        .run(registration_id, amount, 'pending');
+      res.json({ payment_id: result.lastInsertRowid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  function confirmRegistration(registrationId: number) {
+    const reg = db.prepare('SELECT * FROM Registrations WHERE id = ?').get(registrationId);
+    if (!reg) return;
+    db.prepare('UPDATE Registrations SET status = ? WHERE id = ?').run('confirmed', registrationId);
+    // optionally update team status or trigger event
+    triggerEvent('REGISTRATION_CONFIRMED', 'Registration', registrationId, 0, reg);
+  }
+
+  app.post('/api/payments/:id/simulate-success', (req, res) => {
+    const { id } = req.params;
+    try {
+      const payment = db.prepare('SELECT * FROM Payments WHERE id = ?').get(id);
+      if (!payment) return res.status(404).json({ error: 'Payment not found' });
+      db.transaction(() => {
+        db.prepare("UPDATE Payments SET status = 'success' WHERE id = ?").run(id);
+        confirmRegistration(payment.registration_id);
+      })();
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/payments/:id', (req, res) => {
+    const { id } = req.params;
+    const payment = db.prepare('SELECT * FROM Payments WHERE id = ?').get(id);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    res.json(payment);
+  });
+
+  app.post('/api/tournaments/:id/close-registrations', (req, res) => {
+    const { id } = req.params;
+    try {
+      // change tournament status for tracking
+      db.prepare("UPDATE Tournaments SET status = 'registration_closed' WHERE id = ?").run(id);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/tournaments/:id/generate-bracket', (req, res) => {
+    const { id } = req.params;
+    try {
+      const regs = db.prepare('SELECT id, player_id, team_id FROM Registrations WHERE tournament_id = ? AND status = "confirmed"').all(id);
+      const participants = regs.map((r: any) => r.player_id || r.team_id).filter((p: any) => p != null);
+      if (participants.length < 2) return res.status(400).json({ error: 'Not enough confirmed participants' });
+
+      const bracketObj = db.transaction(() => {
+        const br = db.prepare('INSERT INTO Brackets (tournament_id, type) VALUES (?, ?)').run(id, req.body.type || 'single_elim');
+        const bracket_id = br.lastInsertRowid as number;
+
+        let round = 1;
+        let current = [...participants];
+        let matchNumberCounter = 1;
+
+        while (current.length > 1) {
+          const next = [];
+          for (let i = 0; i < current.length; i += 2) {
+            const p1 = current[i];
+            const p2 = current[i + 1] || null;
+            db.prepare('INSERT INTO BracketMatches (bracket_id, round, match_number, player1_id, player2_id) VALUES (?, ?, ?, ?, ?)')
+              .run(bracket_id, round, matchNumberCounter, p1, p2);
+            matchNumberCounter += 1;
+            next.push(null); // placeholder for winner of this match
+          }
+          current = next;
+          round += 1;
+          matchNumberCounter = 1;
+        }
+        return bracket_id;
+      })();
+      res.json({ bracket_id: bracketObj });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/tournaments/:id/bracket', (req, res) => {
+    const { id } = req.params;
+    const bracket = db.prepare('SELECT * FROM Brackets WHERE tournament_id = ?').get(id);
+    if (!bracket) return res.status(404).json({ error: 'No bracket found' });
+    const matches = db.prepare('SELECT * FROM BracketMatches WHERE bracket_id = ? ORDER BY round, match_number').all(bracket.id);
+    res.json({ bracket, matches });
+  });
+
+  app.post('/api/bracket-matches/:id/complete', (req, res) => {
+    const { id } = req.params;
+    const { winner_id, score1, score2 } = req.body;
+    try {
+      const match = db.prepare('SELECT * FROM BracketMatches WHERE id = ?').get(id);
+      if (!match) return res.status(404).json({ error: 'Match not found' });
+      db.transaction(() => {
+        db.prepare('UPDATE BracketMatches SET winner_id = ?, status = ?, score1 = ?, score2 = ? WHERE id = ?')
+          .run(winner_id, 'completed', score1 || 0, score2 || 0, id);
+
+        // propagate to next round
+        const nextRound = match.round + 1;
+        const nextMatchNumber = Math.ceil(match.match_number / 2);
+        const nextMatch = db.prepare('SELECT * FROM BracketMatches WHERE bracket_id = ? AND round = ? AND match_number = ?')
+          .get(match.bracket_id, nextRound, nextMatchNumber);
+        if (nextMatch) {
+          if (match.match_number % 2 === 1) {
+            db.prepare('UPDATE BracketMatches SET player1_id = ? WHERE id = ?').run(winner_id, nextMatch.id);
+          } else {
+            db.prepare('UPDATE BracketMatches SET player2_id = ? WHERE id = ?').run(winner_id, nextMatch.id);
+          }
+        }
+      })();
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // end registration/payment/bracket routes
 
   app.get('/api/matches', (req, res) => {
     try {

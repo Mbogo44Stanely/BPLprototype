@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Search, Filter, Calendar, Trophy, Users, Download, Eye } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Calendar, Trophy, Users, Download, Eye, CheckCircle, AlertTriangle, Trash2, Edit2 } from 'lucide-react';
 
 interface MatchReport {
   id: number;
@@ -18,9 +18,12 @@ interface MatchReport {
 export default function ClubMatchReports() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'disputed' | 'pending_review'>('all');
-
-  // Mock data - in real app, this would come from API
-  const matchReports: MatchReport[] = [
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({ tournament: '', player1: '', player2: '', score: '', winner: '', category: '' });
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  
+  const [matchReports, setMatchReports] = useState<MatchReport[]>([
     {
       id: 1,
       tournament: "Nairobi Open Championship 2024",
@@ -60,7 +63,96 @@ export default function ClubMatchReports() {
       submittedBy: "Referee Lisa",
       submittedDate: "2024-01-10"
     }
-  ];
+  ]);
+
+  const handleAddReport = () => {
+    if (!formData.tournament || !formData.player1 || !formData.player2 || !formData.score || !formData.winner) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newReport: MatchReport = {
+      id: Date.now(),
+      tournament: formData.tournament,
+      player1: formData.player1,
+      player2: formData.player2,
+      score: formData.score,
+      winner: formData.winner,
+      category: formData.category,
+      date: new Date().toISOString().split('T')[0],
+      submittedBy: 'Current User',
+      submittedDate: new Date().toISOString().split('T')[0],
+      status: 'pending_review'
+    };
+    setMatchReports([...matchReports, newReport]);
+    setFormData({ tournament: '', player1: '', player2: '', score: '', winner: '', category: '' });
+    setShowForm(false);
+    setMessage({type: 'success', text: 'Match report submitted!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleEditClick = (report: MatchReport) => {
+    setEditingId(report.id);
+    setFormData({ tournament: report.tournament, player1: report.player1, player2: report.player2, score: report.score, winner: report.winner, category: report.category });
+    setShowForm(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!formData.tournament || !formData.player1 || !formData.player2 || !formData.score || !formData.winner) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setMatchReports(matchReports.map(r => r.id === editingId ? {
+      ...r,
+      tournament: formData.tournament,
+      player1: formData.player1,
+      player2: formData.player2,
+      score: formData.score,
+      winner: formData.winner,
+      category: formData.category
+    } : r));
+    setFormData({ tournament: '', player1: '', player2: '', score: '', winner: '', category: '' });
+    setShowForm(false);
+    setEditingId(null);
+    setMessage({type: 'success', text: 'Report updated!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({ tournament: '', player1: '', player2: '', score: '', winner: '', category: '' });
+  };
+
+  const handleDeleteReport = (id: number) => {
+    if (confirm('Delete this report?')) {
+      setMatchReports(matchReports.filter(r => r.id !== id));
+      setMessage({type: 'success', text: 'Report deleted!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleDownloadReport = (id: number) => {
+    const report = matchReports.find(r => r.id === id);
+    if (report) {
+      const dataStr = JSON.stringify(report, null, 2);
+      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `match-report-${report.id}.json`;
+      link.click();
+      setMessage({type: 'success', text: 'Report downloaded!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleApplyStatus = (id: number, newStatus: 'completed' | 'disputed' | 'pending_review') => {
+    setMatchReports(matchReports.map(r => r.id === id ? {...r, status: newStatus} : r));
+    setMessage({type: 'success', text: 'Status updated!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const filteredReports = matchReports.filter(report => {
     const matchesSearch = report.tournament.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -86,9 +178,58 @@ export default function ClubMatchReports() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">{editingId ? 'Edit Match Report' : 'Submit Match Report'}</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tournament *</label>
+                <input type="text" placeholder="Tournament name" value={formData.tournament} onChange={(e) => setFormData({...formData, tournament: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                <input type="text" placeholder="e.g., Men's Singles" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Player 1 *</label>
+                <input type="text" placeholder="Player name" value={formData.player1} onChange={(e) => setFormData({...formData, player1: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Player 2 *</label>
+                <input type="text" placeholder="Player name" value={formData.player2} onChange={(e) => setFormData({...formData, player2: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Score *</label>
+                <input type="text" placeholder="21-19, 18-21, 21-15" value={formData.score} onChange={(e) => setFormData({...formData, score: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Winner *</label>
+                <input type="text" placeholder="Winner name" value={formData.winner} onChange={(e) => setFormData({...formData, winner: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={handleCancel} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={editingId ? handleEditSubmit : handleAddReport} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">{editingId ? 'Update' : 'Submit'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Match Reports</h1>
-        <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ tournament: '', player1: '', player2: '', score: '', winner: '', category: '' }); }} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Submit Report
         </button>
@@ -173,19 +314,18 @@ export default function ClubMatchReports() {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-slate-500">Submitted on {report.submittedDate}</p>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-1">
-                    <Eye className="w-4 h-4" />
-                    View
-                  </button>
-                  <button className="px-3 py-1 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors flex items-center gap-1">
+                  <button onClick={() => handleDownloadReport(report.id)} className="px-3 py-1 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors flex items-center gap-1">
                     <Download className="w-4 h-4" />
                     Download
                   </button>
-                  {report.status === 'disputed' && (
-                    <button className="px-3 py-1 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded transition-colors">
-                      Appeal
-                    </button>
-                  )}
+                  <button onClick={() => handleEditClick(report)} className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors flex items-center gap-1">
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteReport(report.id)} className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors flex items-center gap-1">
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

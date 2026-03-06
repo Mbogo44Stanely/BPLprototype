@@ -1,7 +1,19 @@
-import React from 'react';
-import { BarChart3, TrendingUp, Users, Trophy, Calendar, Target, Award, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart3, TrendingUp, Users, Trophy, Calendar, Target, Award, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function ClubAnalytics() {
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+
+  const handleExportData = () => {
+    setMessage({type:'success', text:'Data exported!'});
+    setTimeout(() => setMessage(null),3000);
+  };
+
+  const handleGenerateReport = () => {
+    setMessage({type:'success', text:'Report generated!'});
+    setTimeout(() => setMessage(null),3000);
+  };
+
   // Mock data - in real app, this would come from API
   const analyticsData = {
     playerStats: {
@@ -37,13 +49,19 @@ export default function ClubAnalytics() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Club Analytics</h1>
         <div className="flex gap-2">
-          <button className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
+          <button onClick={handleExportData} className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
             Export Data
           </button>
-          <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+          <button onClick={handleGenerateReport} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
             Generate Report
           </button>
         </div>

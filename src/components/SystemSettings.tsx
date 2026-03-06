@@ -10,21 +10,42 @@ import {
   Mail,
   Clock,
   CheckCircle2,
-  Wrench
+  Wrench,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function SystemSettings() {
   const [activeTab, setActiveTab] = useState('platform');
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  
+  const [settings, setSettings] = useState({
+    platformName: 'Badminton Kenya OS',
+    supportEmail: 'support@badmintonkenya.org',
+    scoreLockWindow: 30,
+    timezone: 'Africa/Nairobi',
+    minRankingMatches: 10,
+    rankingDecayFactor: 0.95,
+    suspensionDays: 7,
+    appealWindow: 14,
+    emailNotifications: true,
+    smsNotifications: false,
+    maintenanceMode: false,
+    maintenanceMessage: 'System under maintenance'
+  });
+
+  const handleInputChange = (field: string, value: any) => {
+    setSettings({...settings, [field]: value});
+  };
 
   const handleSave = () => {
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      setMessage({type: 'success', text: 'System settings saved successfully!'});
+      setTimeout(() => setMessage(null), 3000);
     }, 1000);
   };
 
@@ -56,6 +77,17 @@ export default function SystemSettings() {
           {isSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
+
+      {message && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-4 border rounded-2xl flex items-center gap-3 ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}
+        >
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <span className="text-sm font-semibold">{message.text}</span>
+        </motion.div>
+      )}
 
       {showSuccess && (
         <motion.div 
@@ -103,7 +135,8 @@ export default function SystemSettings() {
                         <Globe className="absolute left-4 top-3.5 text-slate-400" size={18} />
                         <input 
                           type="text" 
-                          defaultValue="Badminton Kenya OS"
+                          value={settings.platformName}
+                          onChange={(e) => handleInputChange('platformName', e.target.value)}
                           className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                         />
                       </div>
@@ -114,7 +147,8 @@ export default function SystemSettings() {
                         <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
                         <input 
                           type="email" 
-                          defaultValue="support@badmintonkenya.org"
+                          value={settings.supportEmail}
+                          onChange={(e) => handleInputChange('supportEmail', e.target.value)}
                           className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                         />
                       </div>
@@ -131,7 +165,8 @@ export default function SystemSettings() {
                         <Lock className="absolute left-4 top-3.5 text-slate-400" size={18} />
                         <input 
                           type="number" 
-                          defaultValue="30"
+                          value={settings.scoreLockWindow}
+                          onChange={(e) => handleInputChange('scoreLockWindow', parseInt(e.target.value))}
                           className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                         />
                       </div>
@@ -141,9 +176,9 @@ export default function SystemSettings() {
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Default Timezone</label>
                       <div className="relative">
                         <Clock className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                        <select className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none transition-all appearance-none">
-                          <option>Africa/Nairobi (UTC+3)</option>
-                          <option>UTC</option>
+                        <select value={settings.timezone} onChange={(e) => handleInputChange('timezone', e.target.value)} className="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none transition-all appearance-none">
+                          <option value="Africa/Nairobi">Africa/Nairobi (UTC+3)</option>
+                          <option value="UTC">UTC</option>
                         </select>
                       </div>
                     </div>
@@ -301,7 +336,7 @@ export default function SystemSettings() {
                         <p className="text-xs text-slate-500">Redirect all non-admin users to a maintenance page.</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
+                        <input type="checkbox" checked={settings.maintenanceMode} onChange={(e) => handleInputChange('maintenanceMode', e.target.checked)} className="sr-only peer" />
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                       </label>
                     </div>
@@ -309,6 +344,8 @@ export default function SystemSettings() {
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Custom Maintenance Banner</label>
                       <textarea 
+                        value={settings.maintenanceMessage}
+                        onChange={(e) => handleInputChange('maintenanceMessage', e.target.value)}
                         placeholder="e.g. We are performing scheduled maintenance. We'll be back at 2 PM EAT."
                         className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-emerald-500 outline-none transition-all h-24 resize-none"
                       />

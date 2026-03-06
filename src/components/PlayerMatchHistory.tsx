@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Download, BarChart3, Calendar, Users, FileText } from 'lucide-react';
+import { Download, BarChart3, Calendar, Users, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function PlayerMatchHistory() {
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
 
   const categories = ['all', 'singles', 'doubles', 'mixed'];
 
@@ -71,9 +72,45 @@ export default function PlayerMatchHistory() {
     recentRating: '4.8/5.0'
   };
 
+  const handleViewAnalysis = (matchId: number) => {
+    setMessage({type: 'success', text: 'Analysis view not implemented yet.'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDownloadReport = (matchId: number) => {
+    const match = filteredMatches.find(m => m.id === matchId);
+    if (match) {
+      const dataStr = JSON.stringify(match, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `match-${match.id}.json`;
+      link.click();
+      setMessage({type:'success', text:'Report downloaded!'});
+      setTimeout(() => setMessage(null),3000);
+    }
+  };
+
+  const handleExportReport = () => {
+    const dataStr = JSON.stringify(filteredMatches, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `match-history.json`;
+    link.click();
+    setMessage({type:'success', text:'Exported all matches!'});
+    setTimeout(() => setMessage(null),3000);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Match History</h1>
       </div>
 
@@ -174,11 +211,11 @@ export default function PlayerMatchHistory() {
 
             {/* Action Buttons */}
             <div className="flex gap-2">
-              <button className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm flex items-center gap-2">
+              <button onClick={() => handleViewAnalysis(match.id)} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" />
                 View Analysis
               </button>
-              <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm flex items-center gap-2">
+              <button onClick={() => handleDownloadReport(match.id)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm flex items-center gap-2">
                 <Download className="w-4 h-4" />
                 Download Report
               </button>
@@ -194,7 +231,7 @@ export default function PlayerMatchHistory() {
             <h3 className="font-bold text-lg text-slate-900 mb-1">Generate Performance Report</h3>
             <p className="text-sm text-slate-600">Download a comprehensive PDF report of your match statistics and performance trends</p>
           </div>
-          <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2 whitespace-nowrap">
+          <button onClick={handleExportReport} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2 whitespace-nowrap">
             <FileText className="w-4 h-4" />
             Export Report
           </button>

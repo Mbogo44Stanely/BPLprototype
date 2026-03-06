@@ -13,7 +13,10 @@ import {
   FileText,
   Gavel,
   History,
-  Plus
+  Plus,
+  CheckCircle,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -39,6 +42,28 @@ export default function DisciplinaryOversight() {
   const [cases, setCases] = useState<DisciplinaryCase[]>(MOCK_CASES);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCase, setSelectedCase] = useState<DisciplinaryCase | null>(null);
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  const handleResolveCase = (id: string) => {
+    setCases(cases.map(c => c.id === id ? { ...c, status: 'Resolved' } : c));
+    setMessage({ type: 'success', text: 'Case resolved!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleAppealCase = (id: string) => {
+    setCases(cases.map(c => c.id === id ? { ...c, status: 'Appealed' } : c));
+    setMessage({ type: 'success', text: 'Appeal recorded!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDeleteCase = (id: string) => {
+    if (confirm('Delete this case?')) {
+      setCases(cases.filter(c => c.id !== id));
+      setSelectedCase(null);
+      setMessage({ type: 'success', text: 'Case deleted!' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   const filteredCases = cases.filter(c => 
     c.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -47,6 +72,21 @@ export default function DisciplinaryOversight() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-2 ${
+          message.type === 'success' 
+            ? 'bg-green-50 border border-green-200 text-green-800' 
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          {message.type === 'success' ? (
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          )}
+          <p className="text-sm font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Disciplinary Oversight</h2>
@@ -259,14 +299,14 @@ export default function DisciplinaryOversight() {
                     <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-200">
                       <h4 className="font-bold text-slate-900 mb-4">Case Actions</h4>
                       <div className="space-y-3">
-                        <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all">
-                          Issue Sanction
-                        </button>
-                        <button className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all">
-                          Request More Info
-                        </button>
-                        <button className="w-full py-3 bg-white border border-emerald-200 text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-all">
+                        <button onClick={() => { selectedCase && handleResolveCase(selectedCase.id); setSelectedCase(null); }} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all">
                           Resolve Case
+                        </button>
+                        <button onClick={() => { selectedCase && handleAppealCase(selectedCase.id); setSelectedCase(null); }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all">
+                          Mark Appeal
+                        </button>
+                        <button onClick={() => { selectedCase && handleDeleteCase(selectedCase.id); }} className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-all">
+                          Delete Case
                         </button>
                       </div>
                     </div>

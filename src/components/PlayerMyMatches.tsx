@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Activity, Clock, MapPin, Users, Trophy, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, Clock, MapPin, Users, Trophy, CheckCircle, XCircle, AlertTriangle, Trash2, Download } from 'lucide-react';
 
 export default function PlayerMyMatches() {
   const [filterStatus, setFilterStatus] = useState('all');
-
-  const matches = [
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  
+  const [matches, setMatches] = useState([
     {
       id: 1,
       opponent: 'Mombasa Badminton Club',
@@ -44,7 +45,47 @@ export default function PlayerMyMatches() {
       score: '21-15',
       fouls: 1
     }
-  ];
+  ]);
+
+  const handleConfirmAttendance = (id: number) => {
+    setMatches(matches.map(m => m.id === id ? {...m, attendance: 'Confirmed'} : m));
+    setMessage({type: 'success', text: 'Attendance confirmed!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleRequestSubstitution = (id: number) => {
+    setMessage({type: 'success', text: 'Substitution request submitted for review!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleUpdateScore = (id: number) => {
+    const score = prompt('Enter current score:');
+    if (score) {
+      setMatches(matches.map(m => m.id === id ? {...m, score} : m));
+      setMessage({type: 'success', text: 'Score updated!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleWithdrawMatch = (id: number) => {
+    if (confirm('Withdraw from this match?')) {
+      setMatches(matches.filter(m => m.id !== id));
+      setMessage({type: 'success', text: 'Match withdrawn!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleDownloadSchedule = () => {
+    const dataStr = JSON.stringify(matches, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'my-matches.json';
+    link.click();
+    setMessage({type: 'success', text: 'Schedule downloaded!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const filteredMatches = matches.filter(m => filterStatus === 'all' || m.status === filterStatus);
 
@@ -59,8 +100,18 @@ export default function PlayerMyMatches() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">My Matches</h1>
+        <button onClick={handleDownloadSchedule} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+          <Download size={18} /> Download Schedule
+        </button>
       </div>
 
       {/* Filter Tabs */}
@@ -137,20 +188,26 @@ export default function PlayerMyMatches() {
 
             {match.status === 'upcoming' && (
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm">
+                <button onClick={() => handleConfirmAttendance(match.id)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm">
                   Confirm Attendance
                 </button>
-                <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm">
+                <button onClick={() => handleRequestSubstitution(match.id)} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm">
                   Request Substitution
+                </button>
+                <button onClick={() => handleWithdrawMatch(match.id)} className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm flex items-center gap-1">
+                  <Trash2 size={16} /> Withdraw
                 </button>
               </div>
             )}
 
             {match.status === 'in-progress' && (
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2">
+                <button onClick={() => handleUpdateScore(match.id)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2">
                   <Activity className="w-4 h-4" />
-                  Live Score
+                  Update Score
+                </button>
+                <button onClick={() => handleWithdrawMatch(match.id)} className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm">
+                  Forfeit
                 </button>
               </div>
             )}

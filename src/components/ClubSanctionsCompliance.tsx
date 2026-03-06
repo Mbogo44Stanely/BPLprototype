@@ -1,5 +1,5 @@
-import React from 'react';
-import { Shield, CheckCircle, AlertTriangle, XCircle, FileText, Calendar, UserCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, CheckCircle, AlertTriangle, XCircle, FileText, Calendar, UserCheck, Plus, Trash2, Edit2 } from 'lucide-react';
 
 interface ComplianceItem {
   id: number;
@@ -12,8 +12,7 @@ interface ComplianceItem {
 }
 
 export default function ClubSanctionsCompliance() {
-  // Mock data - in real app, this would come from API
-  const complianceItems: ComplianceItem[] = [
+  const [complianceItems, setComplianceItems] = useState<ComplianceItem[]>([
     {
       id: 1,
       title: "Player Registration Compliance",
@@ -59,7 +58,105 @@ export default function ClubSanctionsCompliance() {
       nextDue: "2024-12-05",
       category: "Safety"
     }
-  ];
+  ]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({ title: '', description: '', category: '', status: 'compliant' as const });
+  
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+
+  const handleAddCompliance = () => {
+    if (!formData.title || !formData.description) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newItem: ComplianceItem = {
+      id: Date.now(),
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      status: formData.status,
+      lastChecked: new Date().toISOString().split('T')[0],
+      nextDue: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    };
+    setComplianceItems([...complianceItems, newItem]);
+    setFormData({ title: '', description: '', category: '', status: 'compliant' });
+    setShowForm(false);
+    setMessage({type: 'success', text: 'Compliance item added!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleEditClick = (item: ComplianceItem) => {
+    setEditingId(item.id);
+    setFormData({ title: item.title, description: item.description, category: item.category, status: item.status });
+    setShowForm(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!formData.title || !formData.description) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setComplianceItems(complianceItems.map(item => item.id === editingId ? {
+      ...item,
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      status: formData.status
+    } : item));
+    setFormData({ title: '', description: '', category: '', status: 'compliant' });
+    setShowForm(false);
+    setEditingId(null);
+    setMessage({type: 'success', text: 'Item updated!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({ title: '', description: '', category: '', status: 'compliant' });
+  };
+
+  const handleUpdateStatus = (id: number) => {
+    const newStatus = prompt('Enter new status (compliant/warning/non-compliant):');
+    if (newStatus && ['compliant', 'warning', 'non-compliant'].includes(newStatus)) {
+      setComplianceItems(complianceItems.map(item => 
+        item.id === id ? {...item, status: newStatus as 'compliant' | 'warning' | 'non-compliant', lastChecked: new Date().toISOString().split('T')[0]} : item
+      ));
+      setMessage({type: 'success', text: 'Compliance status updated!'});
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      setMessage({type: 'error', text: 'Invalid status'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleRequestAudit = () => {
+    setMessage({type: 'success', text: 'Audit request submitted. You will receive a confirmation email.'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleSubmitReport = () => {
+    setMessage({type: 'success', text: 'Compliance report submitted successfully!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleRequestInspection = () => {
+    setMessage({type: 'success', text: 'Inspection request submitted. Awaiting scheduling.'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleAppealDecision = () => {
+    setMessage({type: 'success', text: 'Appeal submission received. Review process started.'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleScheduleReview = () => {
+    setMessage({type: 'success', text: 'Review scheduled. Confirmation sent to your email.'});
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -93,11 +190,56 @@ export default function ClubSanctionsCompliance() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+      {showForm && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">{editingId ? 'Edit Compliance Item' : 'Add Compliance Item'}</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
+              <input type="text" placeholder="Enter title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+              <textarea placeholder="Enter description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 h-20" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                <input type="text" placeholder="e.g., Registration" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as any})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500">
+                  <option value="compliant">Compliant</option>
+                  <option value="warning">Warning</option>
+                  <option value="non-compliant">Non-Compliant</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={handleCancel} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={editingId ? handleEditSubmit : handleAddCompliance} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">{editingId ? 'Update' : 'Add'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Sanctions & Compliance</h1>
-        <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-          Request Audit
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ title: '', description: '', category: '', status: 'compliant' }); }} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+            <Plus size={18} /> Add Item
+          </button>
+          <button onClick={handleRequestAudit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Request Audit
+          </button>
+        </div>
       </div>
 
       {/* Compliance Summary */}
@@ -184,15 +326,18 @@ export default function ClubSanctionsCompliance() {
                   <span className={`inline-flex items-center gap-1 px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(item.status)}`}>
                     {item.status.replace('-', ' ')}
                   </span>
+                  <button onClick={() => handleEditClick(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => { if (!confirm('Delete this item?')) return; setComplianceItems(complianceItems.filter(i => i.id !== item.id)); setMessage({type: 'success', text: 'Item deleted!'}); setTimeout(() => setMessage(null), 3000); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
               {item.status !== 'compliant' && (
                 <div className="mt-4 flex gap-2">
-                  <button className="px-3 py-1 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors">
+                  <button onClick={() => handleUpdateStatus(item.id)} className="px-3 py-1 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors">
                     Update Status
-                  </button>
-                  <button className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors">
-                    View Details
                   </button>
                 </div>
               )}
@@ -228,19 +373,19 @@ export default function ClubSanctionsCompliance() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
+          <button onClick={handleSubmitReport} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
             <FileText className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
             <p className="text-sm font-medium text-slate-900">Submit Report</p>
           </button>
-          <button className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
+          <button onClick={handleRequestInspection} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
             <UserCheck className="w-6 h-6 text-blue-600 mx-auto mb-2" />
             <p className="text-sm font-medium text-slate-900">Request Inspection</p>
           </button>
-          <button className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
+          <button onClick={handleAppealDecision} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
             <Shield className="w-6 h-6 text-purple-600 mx-auto mb-2" />
             <p className="text-sm font-medium text-slate-900">Appeal Decision</p>
           </button>
-          <button className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
+          <button onClick={handleScheduleReview} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-center">
             <Calendar className="w-6 h-6 text-orange-600 mx-auto mb-2" />
             <p className="text-sm font-medium text-slate-900">Schedule Review</p>
           </button>

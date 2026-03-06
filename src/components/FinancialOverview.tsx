@@ -12,7 +12,12 @@ import {
   Filter,
   Download,
   Eye,
-  Search
+  Search,
+  CheckCircle,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -51,6 +56,44 @@ const COLORS = ['#059669', '#2563eb', '#d97706', '#7c3aed', '#db2777'];
 
 export default function FinancialOverview() {
   const [activeView, setActiveView] = useState<'overview' | 'transactions'>('overview');
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ description: '', amount: '', type: 'income' });
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  const handleAddTransaction = () => {
+    if (!formData.description || !formData.amount) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newTx = { id: Date.now(), ...formData, amount: parseFloat(formData.amount), date: new Date().toISOString().split('T')[0] };
+    setTransactions([...transactions, newTx]);
+    setFormData({ description: '', amount: '', type: 'income' });
+    setShowForm(false);
+    setMessage({type: 'success', text: 'Transaction added!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDeleteTransaction = (id: number) => {
+    if (confirm('Delete this transaction?')) {
+      setTransactions(transactions.filter(t => t.id !== id));
+      setMessage({type: 'success', text: 'Transaction deleted!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleExportReport = () => {
+    const dataStr = JSON.stringify({stats, transactions, generatedAt: new Date().toISOString()}, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'financial-report.json';
+    link.click();
+    setMessage({type: 'success', text: 'Report exported!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const stats = [
     { label: 'Total Revenue', value: 'KES 5.2M', trend: '+12.5%', icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -61,6 +104,13 @@ export default function FinancialOverview() {
 
   return (
     <div className="space-y-8">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Financial Management</h2>
@@ -81,12 +131,71 @@ export default function FinancialOverview() {
               Transactions
             </button>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
+          <button onClick={handleExportReport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
             <Download size={18} />
             Export Report
           </button>
         </div>
       </div>
+
+      {activeView === 'transactions' && (
+        <div className="space-y-4">
+          {showForm && (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Add Transaction</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+                  <input type="text" placeholder="Transaction description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
+                    <input type="number" placeholder="0" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                    <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500">
+                      <option value="income">Income</option>
+                      <option value="expense">Expense</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => { setShowForm(false); setFormData({ description: '', amount: '', type: 'income' }); }} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                  <button onClick={handleAddTransaction} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">Add</button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+            <Plus size={18} /> Add Transaction
+          </button>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">Transactions ({transactions.length})</h3>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {transactions.length > 0 ? transactions.map(tx => (
+                <div key={tx.id} className="p-6 hover:bg-slate-50 transition-colors flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-900">{tx.description}</p>
+                    <p className="text-sm text-slate-500">{tx.date} • {tx.type}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className={`font-bold text-lg ${tx.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>KES {Math.abs(tx.amount).toLocaleString()}</p>
+                    <button onClick={() => handleDeleteTransaction(tx.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              )) : <div className="p-6 text-center text-slate-500">No transactions yet</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeView === 'overview' ? (
         <>

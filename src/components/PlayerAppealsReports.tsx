@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { AlertTriangle, FileText, Send, Download, CheckCircle, Clock, XCircle, Plus } from 'lucide-react';
+import { AlertTriangle, FileText, Send, Download, CheckCircle, Clock, XCircle, Plus, Trash2, Edit2 } from 'lucide-react';
 
 export default function PlayerAppealsReports() {
   const [activeTab, setActiveTab] = useState('disciplinary');
   const [showAppealForm, setShowAppealForm] = useState(false);
   const [showInjuryForm, setShowInjuryForm] = useState(false);
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [appealFormData, setAppealFormData] = useState({ referenceCase: '', appeal: '' });
+  const [injuryFormData, setInjuryFormData] = useState({ injury: '', severity: 'minor', description: '' });
 
-  const disciplinaryRecords = [
+  const [disciplinaryRecords, setDisciplinaryRecords] = useState([
     {
       id: 1,
       date: '2024-02-15',
@@ -27,9 +30,9 @@ export default function PlayerAppealsReports() {
       suspension: '0',
       notes: 'Formal warning recorded'
     }
-  ];
+  ]);
 
-  const appeals = [
+  const [appeals, setAppeals] = useState([
     {
       id: 1,
       date: '2024-02-16',
@@ -48,9 +51,9 @@ export default function PlayerAppealsReports() {
       submittedAt: '2024-01-25T14:15:00',
       decision: 'Appeal approved. Case dismissed.'
     }
-  ];
+  ]);
 
-  const injuryReports = [
+  const [injuryReports, setInjuryReports] = useState([
     {
       id: 1,
       date: '2024-02-20',
@@ -71,9 +74,9 @@ export default function PlayerAppealsReports() {
       medicalClearance: 'Approved',
       matchesAffected: 0
     }
-  ];
+  ]);
 
-  const adminReports = [
+  const [adminReports, setAdminReports] = useState([
     {
       id: 1,
       title: 'League Performance Summary - Q1 2024',
@@ -95,7 +98,83 @@ export default function PlayerAppealsReports() {
       type: 'participation',
       description: 'Overview of your tournament registrations, attendance, and performance across all events'
     }
-  ];
+  ]);
+
+  const handleSubmitAppeal = () => {
+    if (!appealFormData.referenceCase || !appealFormData.appeal) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newAppeal = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      referenceCase: appealFormData.referenceCase,
+      status: 'under-review' as const,
+      appeal: appealFormData.appeal,
+      submittedAt: new Date().toISOString(),
+      decision: null
+    };
+    setAppeals([...appeals, newAppeal]);
+    setAppealFormData({ referenceCase: '', appeal: '' });
+    setShowAppealForm(false);
+    setMessage({type: 'success', text: 'Appeal submitted successfully!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleSubmitInjury = () => {
+    if (!injuryFormData.injury || !injuryFormData.description) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newInjury = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      injury: injuryFormData.injury,
+      severity: injuryFormData.severity as any,
+      status: 'active' as const,
+      description: injuryFormData.description,
+      medicalClearance: 'Pending',
+      matchesAffected: 0
+    };
+    setInjuryReports([...injuryReports, newInjury]);
+    setInjuryFormData({ injury: '', severity: 'minor', description: '' });
+    setShowInjuryForm(false);
+    setMessage({type: 'success', text: 'Injury report submitted!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDeleteAppeal = (id: number) => {
+    if (confirm('Delete this appeal?')) {
+      setAppeals(appeals.filter(a => a.id !== id));
+      setMessage({type: 'success', text: 'Appeal deleted!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleDeleteInjury = (id: number) => {
+    if (confirm('Delete this injury report?')) {
+      setInjuryReports(injuryReports.filter(i => i.id !== id));
+      setMessage({type: 'success', text: 'Injury report deleted!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleDownloadReport = (id: number) => {
+    const report = adminReports.find(r => r.id === id);
+    if (report) {
+      const dataStr = JSON.stringify(report, null, 2);
+      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `report-${report.id}.json`;
+      link.click();
+      setMessage({type: 'success', text: 'Report downloaded!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   const getSeverityColor = (severity) => {
     switch(severity) {
@@ -126,6 +205,13 @@ export default function PlayerAppealsReports() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Appeals & Reports</h1>
       </div>
@@ -226,8 +312,8 @@ export default function PlayerAppealsReports() {
               <h3 className="font-bold text-lg">Submit New Appeal</h3>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Reference Case</label>
-                <select className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                  <option>Select disciplinary case to appeal</option>
+                <select value={appealFormData.referenceCase} onChange={(e) => setAppealFormData({...appealFormData, referenceCase: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                  <option value="">Select disciplinary case to appeal</option>
                   {disciplinaryRecords.map(r => (
                     <option key={r.id}>{r.offense} - {r.date}</option>
                   ))}
@@ -237,18 +323,20 @@ export default function PlayerAppealsReports() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Appeal Statement</label>
                 <textarea
                   rows={4}
+                  value={appealFormData.appeal}
+                  onChange={(e) => setAppealFormData({...appealFormData, appeal: e.target.value})}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
                   placeholder="Explain why you believe the decision should be overturned..."
                 />
               </div>
               <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => setShowAppealForm(false)}
+                  onClick={() => { setShowAppealForm(false); setAppealFormData({ referenceCase: '', appeal: '' }); }}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
+                <button onClick={handleSubmitAppeal} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
                   <Send className="w-4 h-4" />
                   Submit Appeal
                 </button>
@@ -272,6 +360,9 @@ export default function PlayerAppealsReports() {
                   }`}>
                     {appeal.status.replace('-', ' ')}
                   </span>
+                  <button onClick={() => handleDeleteAppeal(appeal.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -308,16 +399,18 @@ export default function PlayerAppealsReports() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Injury Type</label>
                   <input
                     type="text"
+                    value={injuryFormData.injury}
+                    onChange={(e) => setInjuryFormData({...injuryFormData, injury: e.target.value})}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
                     placeholder="e.g., Wrist Sprain"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Severity</label>
-                  <select className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                    <option>Minor</option>
-                    <option>Moderate</option>
-                    <option>Severe</option>
+                  <select value={injuryFormData.severity} onChange={(e) => setInjuryFormData({...injuryFormData, severity: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                    <option value="minor">Minor</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="severe">Severe</option>
                   </select>
                 </div>
               </div>
@@ -325,18 +418,20 @@ export default function PlayerAppealsReports() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
                 <textarea
                   rows={3}
+                  value={injuryFormData.description}
+                  onChange={(e) => setInjuryFormData({...injuryFormData, description: e.target.value})}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
                   placeholder="Describe the injury and how it occurred..."
                 />
               </div>
               <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => setShowInjuryForm(false)}
+                  onClick={() => { setShowInjuryForm(false); setInjuryFormData({ injury: '', severity: 'minor', description: '' }); }}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
+                <button onClick={handleSubmitInjury} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
                   <Send className="w-4 h-4" />
                   Submit Report
                 </button>
@@ -351,9 +446,14 @@ export default function PlayerAppealsReports() {
                   <h3 className="font-bold text-lg text-slate-900">{injury.injury}</h3>
                   <p className="text-sm text-slate-600">{injury.description}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getSeverityColor(injury.severity)}`}>
-                  {injury.severity}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getSeverityColor(injury.severity)}`}>
+                    {injury.severity}
+                  </span>
+                  <button onClick={() => handleDeleteInjury(injury.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-3 p-4 bg-slate-50 rounded-lg">
@@ -394,7 +494,7 @@ export default function PlayerAppealsReports() {
                   <p className="text-sm text-slate-600">{report.description}</p>
                   <p className="text-xs text-slate-500 mt-2">Generated: {report.generatedDate}</p>
                 </div>
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2 whitespace-nowrap">
+                <button onClick={() => handleDownloadReport(report.id)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2 whitespace-nowrap">
                   <Download className="w-4 h-4" />
                   Download
                 </button>

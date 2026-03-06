@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Download, TrendingUp, User, Trophy, BarChart3, PieChart, Calendar, Filter, CheckCircle, AlertCircle } from 'lucide-react';
 
+export default function ClubReports() {
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [reportType, setReportType] = useState<string>('performance');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('month');
 
   const handleGenerateReport = () => {
     const reportData = {
@@ -23,7 +26,7 @@ import { Download, TrendingUp, User, Trophy, BarChart3, PieChart, Calendar, Filt
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleDownloadReport = (report) => {
+  const handleDownloadReport = (report: any) => {
     const dataStr = JSON.stringify(report, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -181,27 +184,17 @@ import { Download, TrendingUp, User, Trophy, BarChart3, PieChart, Calendar, Filt
         >
           Generate Report
         </button>
-      </div>
 
       {/* Metrics Overview */}
       {reportType === 'performance' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-600">Total Matches</p>
-              <Trophy className="w-5 h-5 text-emerald-600" />
+                <p className="text-sm text-slate-600">Total Matches</p>
+                <Trophy className="w-5 h-5 text-emerald-600" />
             </div>
             <p className="text-2xl font-bold text-slate-900">{performanceMetrics.totalMatches}</p>
             <p className="text-xs text-slate-500 mt-1">{performanceMetrics.wins}W - {performanceMetrics.losses}L</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-slate-600">Win Rate</p>
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-            </div>
-            <p className="text-2xl font-bold text-slate-900">{performanceMetrics.winRate}</p>
-            <p className="text-xs text-slate-500 mt-1">Team success ratio</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">

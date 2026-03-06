@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, Plus, Search, Filter, Calendar, MapPin, Users, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Trophy, Plus, Search, Filter, Calendar, MapPin, Users, CheckCircle, Clock, XCircle, AlertTriangle, Trash2, Edit2 } from 'lucide-react';
 
 interface Tournament {
   id: number;
@@ -16,9 +16,12 @@ interface Tournament {
 export default function TournamentRegistrations() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'registered' | 'pending' | 'cancelled'>('all');
-
-  // Mock data - in real app, this would come from API
-  const tournaments: Tournament[] = [
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({ name: '', date: '', location: '', fee: '', categories: '', maxPlayers: '' });
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  
+  const [tournaments, setTournaments] = useState<Tournament[]>([
     {
       id: 1,
       name: "Nairobi Open Championship 2024",
@@ -52,7 +55,94 @@ export default function TournamentRegistrations() {
       fee: 4000,
       categories: ["Senior Mixed", "Veterans"]
     }
-  ];
+  ]);
+
+  const handleAddRegistration = () => {
+    if (!formData.name || !formData.date || !formData.location || !formData.fee) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    const newTournament: Tournament = {
+      id: Date.now(),
+      name: formData.name,
+      date: formData.date,
+      location: formData.location,
+      fee: parseInt(formData.fee),
+      maxPlayers: parseInt(formData.maxPlayers) || 16,
+      registeredPlayers: 0,
+      categories: formData.categories ? formData.categories.split(',').map(c => c.trim()) : [],
+      status: 'pending'
+    };
+    setTournaments([...tournaments, newTournament]);
+    setFormData({ name: '', date: '', location: '', fee: '', categories: '', maxPlayers: '' });
+    setShowForm(false);
+    setMessage({type: 'success', text: 'Tournament registration added!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleCompleteRegistration = (id: number) => {
+    setTournaments(tournaments.map(t => t.id === id ? {...t, status: 'registered'} : t));
+    setMessage({type: 'success', text: 'Registration completed!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleCancelRegistration = (id: number) => {
+    if (confirm('Cancel this registration?')) {
+      setTournaments(tournaments.filter(t => t.id !== id));
+      setMessage({type: 'success', text: 'Registration cancelled!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleEditClick = (tournament: Tournament) => {
+    setEditingId(tournament.id);
+    setFormData({
+      name: tournament.name,
+      date: tournament.date,
+      location: tournament.location,
+      fee: tournament.fee.toString(),
+      categories: tournament.categories.join(', '),
+      maxPlayers: tournament.maxPlayers.toString()
+    });
+    setShowForm(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!formData.name || !formData.date || !formData.location || !formData.fee) {
+      setMessage({type: 'error', text: 'Please fill all required fields'});
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+    setTournaments(tournaments.map(t => t.id === editingId ? {
+      ...t,
+      name: formData.name,
+      date: formData.date,
+      location: formData.location,
+      fee: parseInt(formData.fee),
+      maxPlayers: parseInt(formData.maxPlayers) || 16,
+      categories: formData.categories ? formData.categories.split(',').map(c => c.trim()) : []
+    } : t));
+    setFormData({ name: '', date: '', location: '', fee: '', categories: '', maxPlayers: '' });
+    setShowForm(false);
+    setEditingId(null);
+    setMessage({type: 'success', text: 'Tournament updated!'});
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({ name: '', date: '', location: '', fee: '', categories: '', maxPlayers: '' });
+  };
+
+  const handleDeleteRegistration = (id: number) => {
+    if (confirm('Delete this tournament registration?')) {
+      setTournaments(tournaments.filter(t => t.id !== id));
+      setMessage({type: 'success', text: 'Tournament deleted!'});
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   const filteredTournaments = tournaments.filter(tournament => {
     const matchesSearch = tournament.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,13 +179,60 @@ export default function TournamentRegistrations() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <p className="font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Tournament Registrations</h1>
-        <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+        <button onClick={() => { setShowForm(true); setEditingId(null); setFormData({ name: '', date: '', location: '', fee: '', categories: '', maxPlayers: '' }); }} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Register for Tournament
         </button>
       </div>
+
+      {showForm && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">{editingId ? 'Edit Registration' : 'New Tournament Registration'}</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Tournament Name *</label>
+              <input type="text" placeholder="Enter tournament name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+                <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Location *</label>
+                <input type="text" placeholder="Enter location" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Registration Fee (KES) *</label>
+                <input type="number" placeholder="0" value={formData.fee} onChange={(e) => setFormData({...formData, fee: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Max Players</label>
+                <input type="number" placeholder="16" value={formData.maxPlayers} onChange={(e) => setFormData({...formData, maxPlayers: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Categories (comma-separated)</label>
+              <input type="text" placeholder="Men's Singles, Women's Singles" value={formData.categories} onChange={(e) => setFormData({...formData, categories: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={handleCancel} className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={editingId ? handleEditSubmit : handleAddRegistration} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">{editingId ? 'Update' : 'Register'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -184,17 +321,20 @@ export default function TournamentRegistrations() {
               </div>
               <div className="flex gap-2">
                 {tournament.status === 'registered' && (
-                  <button className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors">
+                  <button onClick={() => handleCancelRegistration(tournament.id)} className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors">
                     Cancel Registration
                   </button>
                 )}
                 {tournament.status === 'pending' && (
-                  <button className="px-3 py-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors">
+                  <button onClick={() => handleCompleteRegistration(tournament.id)} className="px-3 py-1 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors">
                     Complete Registration
                   </button>
                 )}
-                <button className="px-3 py-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors">
-                  View Details
+                <button onClick={() => handleEditClick(tournament)} className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors">
+                  <Edit2 size={14} className="inline mr-1" /> Edit
+                </button>
+                <button onClick={() => handleDeleteRegistration(tournament.id)} className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors">
+                  <Trash2 size={14} className="inline mr-1" /> Delete
                 </button>
               </div>
             </div>

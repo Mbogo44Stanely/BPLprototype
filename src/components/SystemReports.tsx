@@ -12,7 +12,11 @@ import {
   Eye,
   FileText,
   Share2,
-  Clock
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -35,24 +39,71 @@ const MOCK_REPORTS: Report[] = [
 export default function SystemReports() {
   const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
   const [activeTab, setActiveTab] = useState<'all' | 'financial' | 'operations' | 'governance'>('all');
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  const handleDownloadReport = (id: string) => {
+    const report = reports.find(r => r.id === id);
+    if (report) {
+      const dataStr = JSON.stringify(report, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title}.json`;
+      a.click();
+      setMessage({ type: 'success', text: 'Report downloaded!' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleDeleteReport = (id: string) => {
+    if (confirm('Delete this report?')) {
+      setReports(reports.filter(r => r.id !== id));
+      setMessage({ type: 'success', text: 'Report deleted!' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  const handleGenerateReport = () => {
+    const newReport: Report = { 
+      id: Date.now().toString(), 
+      title: 'New System Report', 
+      category: 'Financial', 
+      generatedBy: 'User', 
+      date: new Date().toISOString().split('T')[0], 
+      format: 'PDF' 
+    };
+    setReports([newReport, ...reports]);
+    setMessage({ type: 'success', text: 'Report generated!' });
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   return (
     <div className="space-y-8">
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center gap-2 ${
+          message.type === 'success' 
+            ? 'bg-green-50 border border-green-200 text-green-800' 
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          {message.type === 'success' ? (
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          )}
+          <p className="text-sm font-medium">{message.text}</p>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">System Reports</h2>
           <p className="text-slate-500">Generate and manage federation-wide data exports and analytics</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
-            <Clock size={18} />
-            Scheduled Reports
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
-            <FileBarChart size={18} />
-            Generate New Report
-          </button>
-        </div>
+        <button onClick={handleGenerateReport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
+          <Plus size={18} />
+          Generate New Report
+        </button>
       </div>
 
       {/* Quick Access Grid */}
@@ -142,11 +193,11 @@ export default function SystemReports() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
+                        <button onClick={() => handleDownloadReport(report.id)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
                           <Download size={18} />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                          <Share2 size={18} />
+                        <button onClick={() => handleDeleteReport(report.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
