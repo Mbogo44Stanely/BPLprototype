@@ -6,6 +6,9 @@ import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
 import Tournaments from './components/Tournaments';
 import LandingPage from './components/LandingPage';
+import AboutPage from './components/AboutPage';
+import ContactPage from './components/ContactPage';
+import BlogPage from './components/BlogPage';
 import AuditLog from './audit/AuditLog';
 import SystemSettings from './components/SystemSettings';
 import FinancialOverview from './components/FinancialOverview';
@@ -36,20 +39,36 @@ import ClubMatches from './components/ClubMatches';
 import ClubCommunications from './components/ClubCommunications';
 import ClubDisputes from './components/ClubDisputes';
 import ClubReports from './components/ClubReports';
+import TournamentRegistration from './components/TournamentRegistration';
+import BracketView from './components/BracketView';
 
 export default function App() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAuth, setShowAuth] = useState(false);
+  const [landingPage, setLandingPage] = useState<'home' | 'about' | 'contact' | 'blog'>('home');
 
   if (!user) {
     if (showAuth) {
       return <Auth />;
     }
+
+    // Handle landing page navigation
+    if (landingPage === 'about') {
+      return <AboutPage onBack={() => setLandingPage('home')} onNavigate={(page) => setLandingPage(page)} />;
+    }
+    if (landingPage === 'contact') {
+      return <ContactPage onBack={() => setLandingPage('home')} onNavigate={(page) => setLandingPage(page)} />;
+    }
+    if (landingPage === 'blog') {
+      return <BlogPage onBack={() => setLandingPage('home')} onNavigate={(page) => setLandingPage(page)} />;
+    }
+
     return (
       <LandingPage 
         onGetStarted={() => setShowAuth(true)} 
         onLogin={() => setShowAuth(true)} 
+        onNavigate={(page) => setLandingPage(page)}
       />
     );
   }
@@ -128,6 +147,10 @@ export default function App() {
         return <ClubDisputes />;
       case 'club-reports':
         return <ClubReports />;
+      case 'payment-sim':
+        return <TournamentRegistration />;
+      case 'bracket-sim':
+        return <BracketView />;
       case 'backups':
       case 'feature-flags':
       case 'notifications-engine':
