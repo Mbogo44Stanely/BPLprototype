@@ -13,10 +13,10 @@ export default function PaymentSimulator() {
   const handleRegister = async () => {
     if (!playerId) return;
     try {
-      const resp = await fetch(`/api/tournaments/${tournamentId}/register`, {
+      const resp = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: playerId, amount: parseFloat(amount) })
+        body: JSON.stringify({ action: 'register', tournament_id: tournamentId, player_id: playerId, amount: parseFloat(amount) })
       });
       const data = await resp.json();
       if (resp.ok) {
@@ -34,16 +34,24 @@ export default function PaymentSimulator() {
 
   const fetchPayment = async () => {
     if (!paymentId) return;
-    const resp = await fetch(`/api/payments/${paymentId}`);
+    const resp = await fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get', payment_id: paymentId })
+    });
     const data = await resp.json();
     if (resp.ok) {
-      setPaymentStatus(data.status);
+      setPaymentStatus(data.data?.status || data.status);
     }
   };
 
   const simulateSuccess = async () => {
     if (!paymentId) return;
-    const resp = await fetch(`/api/payments/${paymentId}/simulate-success`, { method: 'POST' });
+    const resp = await fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'simulate-success', payment_id: paymentId })
+    });
     if (resp.ok) {
       setPaymentStatus('success');
       setMessage('Payment marked as success; registration confirmed');

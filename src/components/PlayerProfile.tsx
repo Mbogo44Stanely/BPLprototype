@@ -49,10 +49,11 @@ export default function PlayerProfile() {
     fetch(`/api/profile?user_id=${user.user_id}`)
       .then(res => res.json())
       .then(data => {
-        if (data.user) {
-          setProfile(data.user);
-          const base = { full_name: data.user.full_name, phone: data.user.phone || '' };
-          const pd = data.user.profile_data || {};
+        const profile = data.data || data.user;
+        if (profile) {
+          setProfile(profile);
+          const base = { full_name: profile.full_name, phone: profile.phone || '' };
+          const pd = profile.profile_data || {};
           setForm({ ...base, ...pd });
         }
       })

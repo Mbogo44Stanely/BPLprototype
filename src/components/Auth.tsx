@@ -18,13 +18,15 @@ export default function Auth() {
     setError('');
     setSuccess('');
 
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-    const body = isLogin 
-      ? { email, password }
-      : { full_name: fullName, email, password, role, phone };
+    const body = {
+      action: isLogin ? 'login' : 'register',
+      email,
+      password,
+      ...((!isLogin) && { full_name: fullName, role, phone })
+    };
 
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

@@ -47,7 +47,11 @@ export default function BracketView({ tournamentId = 1 }: Props) {
   const fetchBracket = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/bracket`);
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get-bracket', tournament_id: tournamentId })
+      });
       if (res.status === 404) {
         setMessage({type: 'error', text: 'No bracket generated yet. Close registrations and generate bracket first.'});
         setBracketData(null);
@@ -72,10 +76,10 @@ export default function BracketView({ tournamentId = 1 }: Props) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/bracket-matches/${selectedMatch.id}/complete`, {
+      const res = await fetch('/api/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ winner_id: winner, score1, score2 })
+        body: JSON.stringify({ action: 'complete', match_id: selectedMatch.id, winner_id: winner })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

@@ -24,15 +24,31 @@ export default function Dashboard() {
           if (activeRole?.role_name === 'super_admin') {
             // Super Admin specific data fetching
             const responses = await Promise.all([
-              fetch('/api/admin/users'),
-              fetch('/api/tournaments'),
-              fetch('/api/admin/audit-logs'),
+              fetch('/api/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-users' })
+              }),
+              fetch('/api/tournaments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'list' })
+              }),
+              fetch('/api/admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-logs' })
+              }),
             ]);
 
             const [usersRes, tournamentsRes, logsRes] = responses;
-            const users = await usersRes.json();
-            const tournaments = await tournamentsRes.json();
-            const logs = await logsRes.json();
+            const usersResp = await usersRes.json();
+            const tournamentsResp = await tournamentsRes.json();
+            const logsResp = await logsRes.json();
+            
+            const users = usersResp.data || [];
+            const tournaments = tournamentsResp.data || [];
+            const logs = logsResp.data || [];
 
             const pendingApprovals = users.reduce((acc: number, u: any) => 
               acc + u.roles.filter((r: any) => r.status === 'pending').length, 0
@@ -58,12 +74,19 @@ export default function Dashboard() {
             // Regular user data fetching
             const responses = await Promise.all([
               fetch(`/api/players?user_id=${user.user_id}`),
-              fetch(`/api/tournaments`),
-              fetch(`/api/matches?user_id=${user.user_id}`),
-              fetch(`/api/clubs?user_id=${user.user_id}`)
+              fetch('/api/tournaments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'list' })
+              }),
+              fetch('/api/matches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get', user_id: user.user_id })
+              })
             ]);
 
-            const [playersRes, tournamentsRes, matchesRes, clubsRes] = responses;
+            const [playersRes, tournamentsRes, matchesRes] = responses;
 
           const checkResponse = async (res: Response, name: string) => {
             if (!res.ok) {
@@ -75,13 +98,14 @@ export default function Dashboard() {
               const text = await res.text();
               throw new Error(`Invalid content type for ${name}: ${contentType} - ${text.substring(0, 100)}`);
             }
-            return res.json();
+            const json = await res.json();
+            // Handle both direct array responses and wrapped { data: [] } responses
+            return json.data || json;
           };
 
           const players = await checkResponse(playersRes, 'players');
           const tournaments = await checkResponse(tournamentsRes, 'tournaments');
           const matches = await checkResponse(matchesRes, 'matches');
-          const clubs = await checkResponse(clubsRes, 'clubs');
 
           setStats([
             { label: 'Total Players', value: Array.isArray(players) ? players.length.toString() : '0', icon: <Users className="text-blue-600" />, trend: 'Registered', color: 'bg-blue-50' },

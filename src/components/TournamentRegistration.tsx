@@ -44,7 +44,7 @@ export default function TournamentRegistration() {
     try {
       const res = await fetch('/api/tournaments');
       const data = await res.json();
-      setTournaments(data);
+      setTournaments(data.data || data);
     } catch (e) {
       setMessage({type: 'error', text: 'Failed to load tournaments'});
     }
@@ -62,18 +62,18 @@ export default function TournamentRegistration() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/tournaments/${selectedTournament.id}/register`, {
+      const res = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id: playerId, amount: registrationAmount })
+        body: JSON.stringify({ action: 'register', tournament_id: selectedTournament.id, player_id: playerId })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
-      setRegistrations([...registrations, data]);
+      setRegistrations([...registrations, data.data || data]);
       // Also add to payments for tracking
-      setPayments([...payments, { id: data.payment_id, registration_id: data.registration_id, amount: registrationAmount, status: 'pending', created_at: new Date().toISOString() }]);
-      setMessage({type: 'success', text: `Registration created! Payment ID: ${data.payment_id}`});
+      setPayments([...payments, { id: data.data?.id || data.id, registration_id: data.data?.id, amount: registrationAmount, status: 'pending', created_at: new Date().toISOString() }]);
+      setMessage({type: 'success', text: `Registration created! Payment ID: ${data.data?.id || data.id}`});
       
       // Reset form
       setPlayerId(1);
@@ -89,15 +89,16 @@ export default function TournamentRegistration() {
   const handleSimulatePayment = async (paymentId: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/payments/${paymentId}/simulate-success`, {
+      const res = await fetch('/api/payments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'simulate-success', payment_id: paymentId })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
       // Update payment status
-      setPayments(payments.map(p => p.id === paymentId ? {...p, status: 'success'} : p));
+      setPayments(payments.map(p => p.id === paymentId ? {...p, status: 'completed'} : p));
       setMessage({type: 'success', text: 'Payment simulated successfully! Registration confirmed.'});
     } catch (e: any) {
       setMessage({type: 'error', text: e.message});
@@ -108,10 +109,14 @@ export default function TournamentRegistration() {
 
   const fetchPaymentStatus = async (paymentId: number) => {
     try {
-      const res = await fetch(`/api/payments/${paymentId}`);
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get', payment_id: paymentId })
+      });
       const data = await res.json();
       if (res.ok) {
-        setPayments(payments.map(p => p.id === paymentId ? data : p));
+        setPayments(payments.map(p => p.id === paymentId ? data.data : p));
       }
     } catch (e) {
       console.error('Failed to fetch payment status');

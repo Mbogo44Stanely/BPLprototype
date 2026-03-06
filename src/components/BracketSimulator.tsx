@@ -20,7 +20,11 @@ export default function BracketSimulator() {
   const [message, setMessage] = useState<string | null>(null);
 
   const generate = async () => {
-    const resp = await fetch(`/api/tournaments/${tournamentId}/generate-bracket`, { method: 'POST' });
+    const resp = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'generate-bracket', tournament_id: parseInt(tournamentId) })
+    });
     const data = await resp.json();
     if (resp.ok) {
       setMessage('Bracket generated');
@@ -31,7 +35,11 @@ export default function BracketSimulator() {
   };
 
   const fetchBracket = async () => {
-    const resp = await fetch(`/api/tournaments/${tournamentId}/bracket`);
+    const resp = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get-bracket', tournament_id: parseInt(tournamentId) })
+    });
     const data = await resp.json();
     if (resp.ok) {
       setBracket(data.bracket);
@@ -43,10 +51,10 @@ export default function BracketSimulator() {
   };
 
   const completeMatch = async (match: Match, winnerId: number) => {
-    const resp = await fetch(`/api/bracket-matches/${match.id}/complete`, {
+    const resp = await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ winner_id: winnerId, score1: 21, score2: 18 })
+      body: JSON.stringify({ action: 'complete', match_id: match.id, winner_id: winnerId })
     });
     const data = await resp.json();
     if (resp.ok) {

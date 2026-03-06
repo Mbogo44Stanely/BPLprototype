@@ -23,10 +23,15 @@ export default function AuditLog() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch('/api/admin/audit-logs');
+        const res = await fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get-logs' })
+        });
         if (res.ok) {
-          const data = await res.json();
-          setLogs(data);
+          const response = await res.json();
+          const data = response.data || response;
+          setLogs(Array.isArray(data) ? data : []);
         } else {
           // Fallback mock data if API fails
           setLogs([
